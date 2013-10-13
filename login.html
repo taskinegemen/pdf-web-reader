@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+
+    <script type="text/javascript" src="jquery-1.4.2.min.js"></script>
+    <script type="text/javascript" src="jquery-ui-1.8.5.custom.min.js"></script>
+
+    <script type="text/javascript" src="dragscrollable.js"></script>
+    <script type="text/javascript" src="jquery.colorbox-min.js"></script>
+    <script type="text/javascript" src="jquery.ui.ipad.js"></script>
+    <script type="text/javascript" src="jquery.bt.min.js"></script>
+
+    <script type="text/javascript" src="BookReader.js"></script>
+
+    <title>Linden Web Reader</title>
+</head>
+<body>
+<script type="text/javascript">
+
+    window.token = null;
+    window.bookID = null;
+    var status = false;
+    var dummyPageCount = null;
+    var pageNumberVar  = null;
+    var books =[];
+    if(token==null) {
+
+    }
+
+    function submitLogin() {
+        var user = document.getElementById('mail').value;
+        var pass = document.getElementById('pass').value;
+        $.ajax({
+            url: 'http://api.seviye.com.tr/user-login?email='+user+'&password='+pass+'',
+            async: false,
+            dataType: 'json',
+            success: function (data) {
+                if(data.status==true) {
+                    window.token = data.token;
+                    document.getElementById('alertbox').style.display='none';
+
+                } else {
+                    document.getElementById('alertbox').innerHTML=('<p style="color: red;">hata</p>');
+                }
+            }
+
+            //}
+
+
+        });
+        document.getElementById('loginForm').style.display='none';
+        $.ajax({
+            url: 'http://api.seviye.com.tr/userbook?token='+token+'',
+            async: false,
+            dataType: 'json',
+            success: function (data) {
+                //console.log(data['books'][0]);
+                var booklist = [];
+                $.each(data['books'],function(i,val) {
+                    if(val.isPublished == 1) {
+                    //console.log(val.title);
+                    booklist.push('<li><a href="#" id='+val.ID+' onclick="showThisBook(this);">' + val.title + '</a></li>');
+                    books.push(val.ID);
+                    }
+                });
+                $('#booklist').append(booklist.join(''));
+
+            }
+        });
+    }
+</script>
+
+
+<label for="login" id="loginForm" style="font-size:1em;">Enter Last Name
+    <input type="text" name="mail" id="mail" style="font-size:1em;" />
+    <input type="password" name="pass" id="pass" style="font-size:1em;" />
+    <input type="submit" onclick="submitLogin();" class="button" />
+    <div id='alertbox'></div>
+</label>
+<div id="lform"></div>
+
+<div id="list">
+    <ul id="booklist">
+
+    </ul>
+</div>
+
+<script type="text/javascript">
+
+     function showThisBook(eleme) {
+
+         var css = document; // shortcut
+         var cssId = 'myCss';  // you could encode the css path itself to generate id..
+         if (!css.getElementById(cssId))
+         {
+             var head  = css.getElementsByTagName('head')[0];
+             var link  = css.createElement('link');
+             link.id   = cssId;
+             link.rel  = 'stylesheet';
+             link.type = 'text/css';
+             link.href = 'BookReader.css';
+             link.media = 'all';
+             head.appendChild(link);
+         }
+         var css = document; // shortcut
+         var cssId = 'myCss';  // you could encode the css path itself to generate id..
+         if (!css.getElementById(cssId))
+         {
+             var head  = css.getElementsByTagName('head')[0];
+             var link  = css.createElement('link');
+             link.id   = cssId2;
+             link.rel  = 'stylesheet';
+             link.type = 'text/css';
+             link.href = 'LindenBookReader.css';
+             link.media = 'all';
+             head.appendChild(link);
+         }
+
+
+         br = new BookReader();
+         br.getPageWidth = function(index) {
+             return 800;
+         }
+         br.getPageHeight = function(index) {
+             return 1200;
+         }
+
+         br.getPageURI = function(index, reduce, rotate) {
+             var leafStr = '000';
+             var imgStr = (index+1).toString();
+             var re = new RegExp("0{"+imgStr.length+"}$");
+             pageNumberVar = leafStr.replace(re, imgStr);
+             //console.log(this.id);
+             var url = 'http://api.seviye.com.tr/book-page-image-direct/'+eleme.id+'/'+ pageNumberVar + '?token='+token+'';
+             $.ajax({
+                 url: 'http://api.seviye.com.tr/book-item?bookID=30&page='+pageNumberVar+'&token='+token+'',
+
+                 dataType: 'json',
+                 success: function (data) {
+                     console.log(data);
+                     /*for(var i in data.bookItems) {
+                      //console.log(data.bookItems[i].itemID);
+                      if(parseInt(data.bookItems[i].page)==parseInt(pageNumberVar)) {
+                      console.log(data.bookItems[i].itemID);
+
+                      };
+                      */
+                     //if ( data.bookItems[0].page != undefined) {
+                     //    console.log(data.bookItems[0].page);
+                     //}
+
+                 }
+
+
+             });
+             return url;
+         }
+         br.getPageSide = function(index) {
+             if (0 == (index & 0x1)) {
+                 return 'R';
+             } else {
+                 return 'L';
+             }
+         }
+         br.getSpreadIndices = function(pindex) {
+             var spreadIndices = [null, null];
+             if ('rl' == this.pageProgression) {
+                 // Right to Left
+                 if (this.getPageSide(pindex) == 'R') {
+                     spreadIndices[1] = pindex;
+                     spreadIndices[0] = pindex + 1;
+                 } else {
+                     // Given index was LHS
+                     spreadIndices[0] = pindex;
+                     spreadIndices[1] = pindex - 1;
+                 }
+             } else {
+                 // Left to right
+                 if (this.getPageSide(pindex) == 'L') {
+                     spreadIndices[0] = pindex;
+                     spreadIndices[1] = pindex + 1;
+                 } else {
+                     // Given index was RHS
+                     spreadIndices[1] = pindex;
+                     spreadIndices[0] = pindex - 1;
+                 }
+             }
+
+             return spreadIndices;
+         }
+         br.getPageNum = function(index) {
+             return index+1;
+         }
+         $.ajax({
+             url: 'http://api.seviye.com.tr/userbook?token='+token+'',
+             async: false,
+             dataType: 'json',
+             success: function (data) {
+                 dummyPageCount = parseInt(data['books'][0]['totalPage']);
+             }
+         });
+         br.numLeafs=dummyPageCount;
+         br.bookTitle= 'Linden Web Reader';
+         br.bookUrl  = 'http://linden-tech.com';
+
+         // Override the path used to find UI images
+         br.imagesBaseURL = 'BookReader/images/';
+
+         br.getEmbedCode = function(frameWidth, frameHeight, viewParams) {
+             return "Embed code not supported in this version of Linden Web Reader.";
+         }
+         br.init();
+         $('#BRtoolbar').find('.read').hide();
+         $('#textSrch').hide();
+         $('#btnSrch').hide();
+
+    };
+
+
+
+
+
+</script>
+<div id="BookReader">
+    <noscript>
+        <p>
+            Linden WebReader requires JavaScript to be enabled. Please check that your browser supports JavaScript and that it is enabled in the browser settings.  You can also try one of the <a href="http://www.archive.org/details/goodytwoshoes00newyiala"> other formats of the book</a>.
+        </p>
+    </noscript>
+</div>
+<script type="text/javascript">
+
+</script>
+</body>
+</html>
